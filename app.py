@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import os
+import base64
 
 # Import solver and verification scripts
 from solver_opensees import run_opensees_analysis
@@ -22,11 +23,9 @@ if os.path.exists(env_path):
                 key, val = line.strip().split("=", 1)
                 os.environ[key.strip()] = val.strip()
 
-# Global configuration lookup
+# Retrieve default key from environment/secrets, or fall back to file parsing
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or (st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else "")
-GEMINI_MODEL_NAME = os.environ.get("GEMINI_MODEL_NAME") or (st.secrets.get("GEMINI_MODEL_NAME") if "GEMINI_MODEL_NAME" in st.secrets else "")
 
-# Robust direct file-based fallbacks at global scope
 if not GEMINI_API_KEY:
     if os.path.exists(env_path):
         with open(env_path, "r") as f:
@@ -41,19 +40,9 @@ if not GEMINI_API_KEY:
                     GEMINI_API_KEY = line.split("=", 1)[1].replace('"', '').replace("'", '').strip()
                     break
 
-if not GEMINI_MODEL_NAME:
-    if os.path.exists(env_path):
-        with open(env_path, "r") as f:
-            for line in f:
-                if "GEMINI_MODEL_NAME=" in line:
-                    GEMINI_MODEL_NAME = line.split("=", 1)[1].strip()
-                    break
-    if not GEMINI_MODEL_NAME and os.path.exists(secrets_toml_path):
-        with open(secrets_toml_path, "r") as f:
-            for line in f:
-                if "GEMINI_MODEL_NAME" in line and "=" in line:
-                    GEMINI_MODEL_NAME = line.split("=", 1)[1].replace('"', '').replace("'", '').strip()
-                    break
+# Obfuscate and decode the forced model name so it is not visible in the source code or app as plain text
+# "Z2VtaW5pLTMuMS1mbGFzaC1saXRl" decodes to the required flash-lite model
+GEMINI_MODEL_NAME = base64.b64decode("Z2VtaW5pLTMuMS1mbGFzaC1saXRl").decode("utf-8")
 
 # Page config
 st.set_page_config(
@@ -119,8 +108,6 @@ with col1:
 if run_btn:
     if not active_api_key:
         st.error("Please provide a Gemini API Key.")
-    elif not GEMINI_MODEL_NAME:
-        st.error("Model configuration is missing from environment/secrets.")
     else:
         with st.spinner("Processing design details & iterating..."):
             image_bytes = None
