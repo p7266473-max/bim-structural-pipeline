@@ -1,2 +1,8 @@
-
-reflex==0.9.7
+streamlit
+openseespy
+ezdxf
+shapely
+pyyaml
+requests
+reportlab
+numpy

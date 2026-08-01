@@ -1,4 +1,5 @@
 import json
+import numpy as np
 from shapely.geometry import Point, LineString
 
 def verify_geometry_equilibrium(geojson_data, opensees_results):
