@@ -99,7 +99,7 @@ with col1:
         
     input_text = st.text_area(
         label="Contextual Description / Annotations (Optional)",
-        value="Define columns at (0,0) and (6,0) with a beam connecting them.",
+        value="Define columns at (0,0), (6,0), (0,6), and (6,6) with beams connecting them to form a rectangular frame.",
         height=150
     )
     

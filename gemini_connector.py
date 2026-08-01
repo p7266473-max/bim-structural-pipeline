@@ -54,7 +54,12 @@ def parse_input_to_geojson(api_key, file_content_or_text, model_name="gemini-1.5
             "features": [
                 {"type": "Feature", "geometry": {"type": "Point", "coordinates": [0.0, 0.0]}, "properties": {"type": "node", "support": "pinned", "node_id": 1}},
                 {"type": "Feature", "geometry": {"type": "Point", "coordinates": [6.0, 0.0]}, "properties": {"type": "node", "support": "pinned", "node_id": 2}},
-                {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[0.0, 0.0], [6.0, 0.0]]}, "properties": {"type": "beam", "beam_id": 1, "load_kn_m": 25.0, "section_w_mm": 300, "section_h_mm": 600}}
+                {"type": "Feature", "geometry": {"type": "Point", "coordinates": [0.0, 6.0]}, "properties": {"type": "node", "support": "pinned", "node_id": 3}},
+                {"type": "Feature", "geometry": {"type": "Point", "coordinates": [6.0, 6.0]}, "properties": {"type": "node", "support": "pinned", "node_id": 4}},
+                {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[0.0, 0.0], [6.0, 0.0]]}, "properties": {"type": "beam", "beam_id": 1, "load_kn_m": 25.0, "section_w_mm": 300, "section_h_mm": 600}},
+                {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[0.0, 6.0], [6.0, 6.0]]}, "properties": {"type": "beam", "beam_id": 2, "load_kn_m": 25.0, "section_w_mm": 300, "section_h_mm": 600}},
+                {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[0.0, 0.0], [0.0, 6.0]]}, "properties": {"type": "beam", "beam_id": 3, "load_kn_m": 25.0, "section_w_mm": 300, "section_h_mm": 600}},
+                {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[6.0, 0.0], [6.0, 6.0]]}, "properties": {"type": "beam", "beam_id": 4, "load_kn_m": 25.0, "section_w_mm": 300, "section_h_mm": 600}}
             ]
         }
 
