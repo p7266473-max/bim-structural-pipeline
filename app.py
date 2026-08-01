@@ -9,14 +9,51 @@ from verify_checkpoints import verify_geometry_equilibrium, verify_tributary_loa
 from generators import generate_dxf_export, generate_pdf_report, render_dxf_to_png, export_drawing_to_pdf
 from gemini_connector import parse_input_to_geojson, resolve_solver_divergence, perform_iteration_loop
 
+# Define paths relative to the script directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(script_dir, ".env")
+secrets_toml_path = os.path.join(script_dir, ".streamlit", "secrets.toml")
+
 # Load environment variables if a .env file exists (e.g. locally)
-env_path = os.path.join(os.path.dirname(__file__), ".env")
 if os.path.exists(env_path):
     with open(env_path, "r") as f:
         for line in f:
             if "=" in line and not line.strip().startswith("#"):
                 key, val = line.strip().split("=", 1)
                 os.environ[key.strip()] = val.strip()
+
+# Global configuration lookup
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or (st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else "")
+GEMINI_MODEL_NAME = os.environ.get("GEMINI_MODEL_NAME") or (st.secrets.get("GEMINI_MODEL_NAME") if "GEMINI_MODEL_NAME" in st.secrets else "")
+
+# Robust direct file-based fallbacks at global scope
+if not GEMINI_API_KEY:
+    if os.path.exists(env_path):
+        with open(env_path, "r") as f:
+            for line in f:
+                if "GEMINI_API_KEY=" in line:
+                    GEMINI_API_KEY = line.split("=", 1)[1].strip()
+                    break
+    if not GEMINI_API_KEY and os.path.exists(secrets_toml_path):
+        with open(secrets_toml_path, "r") as f:
+            for line in f:
+                if "GEMINI_API_KEY" in line and "=" in line:
+                    GEMINI_API_KEY = line.split("=", 1)[1].replace('"', '').replace("'", '').strip()
+                    break
+
+if not GEMINI_MODEL_NAME:
+    if os.path.exists(env_path):
+        with open(env_path, "r") as f:
+            for line in f:
+                if "GEMINI_MODEL_NAME=" in line:
+                    GEMINI_MODEL_NAME = line.split("=", 1)[1].strip()
+                    break
+    if not GEMINI_MODEL_NAME and os.path.exists(secrets_toml_path):
+        with open(secrets_toml_path, "r") as f:
+            for line in f:
+                if "GEMINI_MODEL_NAME" in line and "=" in line:
+                    GEMINI_MODEL_NAME = line.split("=", 1)[1].replace('"', '').replace("'", '').strip()
+                    break
 
 # Page config
 st.set_page_config(
@@ -41,41 +78,6 @@ col1, col2, col3 = st.columns([1.2, 1.6, 1.2])
 with col1:
     st.subheader("Step 1: Configuration & Input")
     
-    # Retrieve default key and model name from secrets/environment
-    env_api_key = os.environ.get("GEMINI_API_KEY") or (st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else "")
-    model_name = os.environ.get("GEMINI_MODEL_NAME") or (st.secrets.get("GEMINI_MODEL_NAME") if "GEMINI_MODEL_NAME" in st.secrets else "")
-    
-    # Double-check file-based fallback directly to bypass any cached environment issues
-    if not env_api_key:
-        if os.path.exists(env_path):
-            with open(env_path, "r") as f:
-                for line in f:
-                    if "GEMINI_API_KEY=" in line:
-                        env_api_key = line.split("=", 1)[1].strip()
-                        break
-        secrets_toml_path = os.path.join(os.path.dirname(__file__), ".streamlit", "secrets.toml")
-        if not env_api_key and os.path.exists(secrets_toml_path):
-            with open(secrets_toml_path, "r") as f:
-                for line in f:
-                    if "GEMINI_API_KEY" in line and "=" in line:
-                        env_api_key = line.split("=", 1)[1].replace('"', '').replace("'", '').strip()
-                        break
-
-    if not model_name:
-        if os.path.exists(env_path):
-            with open(env_path, "r") as f:
-                for line in f:
-                    if "GEMINI_MODEL_NAME=" in line:
-                        model_name = line.split("=", 1)[1].strip()
-                        break
-        secrets_toml_path = os.path.join(os.path.dirname(__file__), ".streamlit", "secrets.toml")
-        if not model_name and os.path.exists(secrets_toml_path):
-            with open(secrets_toml_path, "r") as f:
-                for line in f:
-                    if "GEMINI_MODEL_NAME" in line and "=" in line:
-                        model_name = line.split("=", 1)[1].replace('"', '').replace("'", '').strip()
-                        break
-    
     # Selection mode for API key
     key_mode = st.radio(
         "API Key Option",
@@ -84,7 +86,7 @@ with col1:
     )
     
     if key_mode == "Use Default Key (Secure)":
-        active_api_key = env_api_key
+        active_api_key = GEMINI_API_KEY
         st.info("🔒 Default key loaded from environment secrets.")
     else:
         user_api_key = st.text_input("Custom Gemini API Key", type="password", placeholder="Paste custom API Key...")
@@ -117,7 +119,7 @@ with col1:
 if run_btn:
     if not active_api_key:
         st.error("Please provide a Gemini API Key.")
-    elif not model_name:
+    elif not GEMINI_MODEL_NAME:
         st.error("Model configuration is missing from environment/secrets.")
     else:
         with st.spinner("Processing design details & iterating..."):
@@ -134,7 +136,7 @@ if run_btn:
                 image_bytes=image_bytes,
                 image_mime=image_mime,
                 num_floors=num_floors,
-                model_name=model_name
+                model_name=GEMINI_MODEL_NAME
             )
             
             # Auto-iteration Correction Loop
@@ -142,7 +144,7 @@ if run_btn:
                 api_key=active_api_key,
                 initial_geojson=raw_geojson,
                 num_floors=num_floors,
-                model_name=model_name
+                model_name=GEMINI_MODEL_NAME
             )
             
             # Final Solver Pass on corrected geometry
@@ -155,7 +157,7 @@ if run_btn:
             check3 = verify_material_detailing(opensees_res)
             
             # Step 4: Resolve Divergence
-            ai_resolution = resolve_solver_divergence(active_api_key, opensees_res, frame3dd_res, model_name)
+            ai_resolution = resolve_solver_divergence(active_api_key, opensees_res, frame3dd_res, GEMINI_MODEL_NAME)
             
             # Step 5: Deliverables
             os.makedirs("assets", exist_ok=True)
