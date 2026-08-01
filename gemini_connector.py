@@ -11,31 +11,42 @@ def parse_input_to_geojson(api_key, file_content_or_text, image_bytes=None, imag
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
     
     prompt = f"""
-    You are a structural engineer BIM parser assistant.
-    Analyze the uploaded 2D floor plan layout image or the layout description, and extract structural elements: Columns (Point nodes) and Beams/Walls (LineStrings).
-    
-    Important Parameters:
-    - Target Construction Floors: {num_floors} floor(s).
-    - For {num_floors} floor(s), scale the gravity beam uniform loads dynamically: 
-      * If 1 floor: Base load is roughly 15-25 kN/m on beams.
-      * If 2 floors: Cumulative load is roughly 35-50 kN/m on beams due to the second floor slab load path.
-    
-    Output ONLY a valid, standard RFC 7946 GeoJSON Object string containing a FeatureCollection of Points and LineStrings representing structural elements.
-    - Each Point node must represent a column support, and contain properties: {{"type": "node", "support": "pinned" or "fixed", "node_id": integer}}.
-    - Each LineString must represent a structural beam member, containing properties: {{"type": "beam", "beam_id": integer, "load_kn_m": float, "section_w_mm": 300, "section_h_mm": 600}}.
-    
-    CRITICAL: 
-    1. Make sure every LineString (beam) starts and ends exactly at one of the Point coordinates (columns) so the matrix connectivity matches perfectly.
-    2. Check that supports are properly pinned or fixed to create reactions. If they are not specified, add column points at the endpoints of the beam elements.
-    
-    Ensure coordinates map out logically in 2D Space (X and Y coordinates in meters).
-    For example, a rectangular frame has columns at Point coordinates: (0,0) and (6,0) representing pinned supports, and a LineString coordinate from [[0,0], [6,0]] representing a beam with load_kn_m: 24.0.
-    
-    Do NOT output markdown, backticks, or any conversational text. Return only raw GeoJSON.
-    
-    Layout Description / Context:
-    {file_content_or_text}
-    """
+You are an expert structural engineer and BIM automation specialist performing on-the-fly structural analysis from an architectural floor plan.
+
+TASK: Analyze the uploaded architectural floor plan image VERY carefully and generate a precise GeoJSON FeatureCollection that reflects the ACTUAL structural layout of that specific plan — NOT a generic grid.
+
+STEP 1 — SCALE MAPPING:
+- Identify the overall building dimensions from the drawing title or annotation (e.g. 25' x 45').
+- Convert all room dimensions to meters (1 foot = 0.3048 m). Set the bottom-left exterior corner of the building as coordinate origin (0, 0).
+- Map X = horizontal (width) direction, Y = vertical (height/depth) direction.
+
+STEP 2 — COLUMN PLACEMENT (Point features):
+- Place a structural column (Point node) at EVERY location where:
+  a) Two or more load-bearing walls intersect
+  b) External wall corners occur
+  c) Internal partition walls meet external walls
+  d) Room boundary walls change direction
+- Each column must have properties: {{"type": "node", "node_id": <integer starting from 1>, "support": "pinned", "room_context": "<which room boundary this column belongs to>"}}
+- DO NOT place columns at door openings or window positions.
+- DO NOT generate a generic uniform grid. Only place columns where the actual walls of the floor plan dictate structural support.
+
+STEP 3 — BEAM PLACEMENT (LineString features):
+- Connect each pair of adjacent columns along load-bearing walls with a beam (LineString).
+- Each beam must have properties: {{"type": "beam", "beam_id": <integer>, "load_kn_m": <float>, "section_w_mm": 300, "section_h_mm": 600}}
+- Scale the gravity beam uniform loads based on floor count:
+  * {num_floors} floor(s): {"15-25 kN/m for ground floor slab loads" if num_floors == 1 else "35-50 kN/m for multi-floor cumulative loads"}
+- Every beam LineString coordinate pair MUST exactly match two existing column Point coordinates.
+
+STEP 4 — VALIDATION RULES:
+- Every beam endpoint coordinate must match exactly one column coordinate (no floating unconnected beams).
+- Every column must be connected to at least one beam.
+- The column network must form a connected structural frame matching the room boundaries visible in the image.
+
+Additional context provided by user:
+{file_content_or_text}
+
+OUTPUT: Return ONLY a valid RFC 7946 GeoJSON FeatureCollection object. No markdown, no backticks, no explanation text. Pure JSON only.
+"""
     
     parts = []
     
@@ -146,22 +157,32 @@ def perform_iteration_loop(api_key, initial_geojson, num_floors=1, max_iteration
         
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         prompt = f"""
-        You are a structural engineer auditing a model that failed validation checks.
-        
-        Failed checks summary:
-        1. Equilibrium Check: {check1['summary']}
-        2. Detailing Capacity Check: {check3['summary']}
-        
-        Current invalid GeoJSON coordinates model:
-        {json.dumps(current_geojson)}
-        
-        Modify the GeoJSON model parameters to fix the failure:
-        - Ensure total vertical support reactions match the applied loads (sum of reactions = sum of loads). 
-        - If a node is at a support coordinate (e.g. beam end), verify it has properties: {{"type": "node", "support": "pinned" or "fixed", "node_id": ...}}. If support is "none", it won't resist loads, causing equilibrium checks to fail!
-        - If beams are overstressed (high D/C ratio), increase section_w_mm and section_h_mm sizes slightly to provide sufficient section modulus capacity.
-        
-        Output ONLY valid raw GeoJSON. Do not output markdown code blocks.
-        """
+You are a structural engineer auditing a GeoJSON structural model that failed validation checks.
+
+FAILURE SUMMARY:
+1. Equilibrium Check: {check1['summary']}
+2. Detailing Capacity Check: {check3['summary']}
+
+CURRENT FAULTY GEOJSON:
+{json.dumps(current_geojson, indent=2)}
+
+YOUR TASK — fix the following issues:
+
+A) EQUILIBRIUM FIX (if equilibrium failed):
+   - Every beam LineString endpoint coordinate MUST have a matching Point (column) with "support": "pinned" or "fixed".
+   - If a beam endpoint has no matching column node, add one. Support type "none" means NO reaction — change it to "pinned".
+   - The sum of all vertical nodal reactions must equal the sum of all applied beam loads (load_kn_m × beam_length).
+
+B) DETAILING FIX (if detailing failed):
+   - For any beam with D/C ratio > 1.0 (overstressed), increase section_h_mm by 100mm increments until D/C < 1.0.
+   - Minimum section: 300mm wide × 500mm deep.
+
+C) CONNECTIVITY FIX:
+   - Every beam LineString start and end coordinate MUST exactly match a Point column coordinate (to 2 decimal places).
+   - Remove any orphaned columns (columns not connected to any beam).
+
+OUTPUT: Return ONLY the corrected valid RFC 7946 GeoJSON FeatureCollection. Pure JSON, no markdown, no explanation.
+"""
         
         headers = {"Content-Type": "application/json"}
         payload = {

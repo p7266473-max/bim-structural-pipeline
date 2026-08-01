@@ -98,9 +98,10 @@ with col1:
         st.image(uploaded_image, caption="Uploaded Plan Drawing Sketch", use_container_width=True)
         
     input_text = st.text_area(
-        label="Contextual Description / Annotations (Optional)",
-        value="Define columns at (0,0), (6,0), (0,6), and (6,6) with beams connecting them to form a rectangular frame.",
-        height=150
+        label="Additional Context / Override (Optional — leave blank if uploading a floor plan image)",
+        value="",
+        placeholder="e.g. 25' x 45' 2-bedroom ground floor plan. Focus on load-bearing walls only.",
+        height=100
     )
     
     run_btn = st.button("Run Verification Pipeline", type="primary", use_container_width=True)
