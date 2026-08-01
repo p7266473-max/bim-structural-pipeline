@@ -111,68 +111,71 @@ if run_btn:
         st.error("Please provide a Gemini API Key.")
     else:
         with st.spinner("Processing design details & iterating..."):
-            image_bytes = None
-            image_mime = None
-            if uploaded_image:
-                image_bytes = uploaded_image.getvalue()
-                image_mime = uploaded_image.type
+            try:
+                image_bytes = None
+                image_mime = None
+                if uploaded_image:
+                    image_bytes = uploaded_image.getvalue()
+                    image_mime = uploaded_image.type
+                    
+                # Step 1: Parse input text via Gemini to GeoJSON
+                raw_geojson = parse_input_to_geojson(
+                    api_key=active_api_key, 
+                    file_content_or_text=input_text, 
+                    image_bytes=image_bytes,
+                    image_mime=image_mime,
+                    num_floors=num_floors,
+                    model_name=GEMINI_MODEL_NAME
+                )
                 
-            # Step 1: Parse input text via Gemini to GeoJSON
-            raw_geojson = parse_input_to_geojson(
-                api_key=active_api_key, 
-                file_content_or_text=input_text, 
-                image_bytes=image_bytes,
-                image_mime=image_mime,
-                num_floors=num_floors,
-                model_name=GEMINI_MODEL_NAME
-            )
-            
-            # Auto-iteration Correction Loop
-            geojson_data, iteration_log, loop_success = perform_iteration_loop(
-                api_key=active_api_key,
-                initial_geojson=raw_geojson,
-                num_floors=num_floors,
-                model_name=GEMINI_MODEL_NAME
-            )
-            
-            # Final Solver Pass on corrected geometry
-            opensees_res = run_opensees_analysis(geojson_data)
-            frame3dd_res = run_frame3dd_analysis(geojson_data)
-            
-            # Step 3: Run Validation Checks on Final Corrected Geometry
-            check1 = verify_geometry_equilibrium(geojson_data, opensees_res)
-            check2 = verify_tributary_loads(geojson_data, opensees_res)
-            check3 = verify_material_detailing(opensees_res)
-            
-            # Step 4: Resolve Divergence
-            ai_resolution = resolve_solver_divergence(active_api_key, opensees_res, frame3dd_res, GEMINI_MODEL_NAME)
-            
-            # Step 5: Deliverables
-            os.makedirs("assets", exist_ok=True)
-            dxf_path = os.path.join("assets", "structural_layout.dxf")
-            png_path = os.path.join("assets", "structural_drawing.png")
-            pdf_path = os.path.join("assets", "structural_compliance_report.pdf")
-            drawing_pdf_path = os.path.join("assets", "drawing_layout.pdf")
-            
-            # Generate drawing files and PDFs
-            generate_dxf_export(geojson_data, dxf_path)
-            render_dxf_to_png(geojson_data, png_path)
-            export_drawing_to_pdf(geojson_data, drawing_pdf_path)
-            generate_pdf_report(opensees_res, check1, check2, check3, pdf_path)
-            
-            # Save variables in Streamlit session state
-            st.session_state["geojson_data"] = geojson_data
-            st.session_state["check1"] = check1
-            st.session_state["check2"] = check2
-            st.session_state["check3"] = check3
-            st.session_state["ai_resolution"] = ai_resolution
-            st.session_state["dxf_path"] = dxf_path
-            st.session_state["png_path"] = png_path
-            st.session_state["pdf_path"] = pdf_path
-            st.session_state["drawing_pdf_path"] = drawing_pdf_path
-            st.session_state["iteration_log"] = iteration_log
-            st.session_state["loop_success"] = loop_success
-            st.session_state["processed"] = True
+                # Auto-iteration Correction Loop
+                geojson_data, iteration_log, loop_success = perform_iteration_loop(
+                    api_key=active_api_key,
+                    initial_geojson=raw_geojson,
+                    num_floors=num_floors,
+                    model_name=GEMINI_MODEL_NAME
+                )
+                
+                # Final Solver Pass on corrected geometry
+                opensees_res = run_opensees_analysis(geojson_data)
+                frame3dd_res = run_frame3dd_analysis(geojson_data)
+                
+                # Step 3: Run Validation Checks on Final Corrected Geometry
+                check1 = verify_geometry_equilibrium(geojson_data, opensees_res)
+                check2 = verify_tributary_loads(geojson_data, opensees_res)
+                check3 = verify_material_detailing(opensees_res)
+                
+                # Step 4: Resolve Divergence
+                ai_resolution = resolve_solver_divergence(active_api_key, opensees_res, frame3dd_res, GEMINI_MODEL_NAME)
+                
+                # Step 5: Deliverables
+                os.makedirs("assets", exist_ok=True)
+                dxf_path = os.path.join("assets", "structural_layout.dxf")
+                png_path = os.path.join("assets", "structural_drawing.png")
+                pdf_path = os.path.join("assets", "structural_compliance_report.pdf")
+                drawing_pdf_path = os.path.join("assets", "drawing_layout.pdf")
+                
+                # Generate drawing files and PDFs
+                generate_dxf_export(geojson_data, dxf_path)
+                render_dxf_to_png(geojson_data, png_path)
+                export_drawing_to_pdf(geojson_data, drawing_pdf_path)
+                generate_pdf_report(opensees_res, check1, check2, check3, pdf_path)
+                
+                # Save variables in Streamlit session state
+                st.session_state["geojson_data"] = geojson_data
+                st.session_state["check1"] = check1
+                st.session_state["check2"] = check2
+                st.session_state["check3"] = check3
+                st.session_state["ai_resolution"] = ai_resolution
+                st.session_state["dxf_path"] = dxf_path
+                st.session_state["png_path"] = png_path
+                st.session_state["pdf_path"] = pdf_path
+                st.session_state["drawing_pdf_path"] = drawing_pdf_path
+                st.session_state["iteration_log"] = iteration_log
+                st.session_state["loop_success"] = loop_success
+                st.session_state["processed"] = True
+            except Exception as e:
+                st.error(f"Pipeline execution failed:\n\n{str(e)}")
 
 # Display results in Column 2 & 3 if processed
 if st.session_state.get("processed"):
