@@ -11,41 +11,66 @@ def parse_input_to_geojson(api_key, file_content_or_text, image_bytes=None, imag
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
     
     prompt = f"""
-You are an expert structural engineer and BIM automation specialist performing on-the-fly structural analysis from an architectural floor plan.
+You are an expert structural BIM engineer. You will analyze the uploaded architectural floor plan image to extract a precise structural layout.
 
-TASK: Analyze the uploaded architectural floor plan image VERY carefully and generate a precise GeoJSON FeatureCollection that reflects the ACTUAL structural layout of that specific plan — NOT a generic grid.
+DO NOT estimate pixel positions. Instead, follow this dimension-anchored method:
 
-STEP 1 — SCALE MAPPING:
-- Identify the overall building dimensions from the drawing title or annotation (e.g. 25' x 45').
-- Convert all room dimensions to meters (1 foot = 0.3048 m). Set the bottom-left exterior corner of the building as coordinate origin (0, 0).
-- Map X = horizontal (width) direction, Y = vertical (height/depth) direction.
+═══════════════════════════════════════════
+PHASE 1: READ DIMENSIONS FROM THE IMAGE TEXT
+═══════════════════════════════════════════
+1. Read the overall plan dimensions printed in the image title/header (e.g. "25' X 45'").
+2. Read EVERY room label and its printed dimensions (e.g. "LIVING 17' 6\" x 11'", "PARKING 12' 10\" x 11' 2\"", "DINING 11' X 10'", etc.).
+3. Identify which rooms share walls and in what arrangement (top-left, bottom-right, etc.) from the visual layout.
 
-STEP 2 — COLUMN PLACEMENT (Point features):
-- Place a structural column (Point node) at EVERY location where:
-  a) Two or more load-bearing walls intersect
-  b) External wall corners occur
-  c) Internal partition walls meet external walls
-  d) Room boundary walls change direction
-- Each column must have properties: {{"type": "node", "node_id": <integer starting from 1>, "support": "pinned", "room_context": "<which room boundary this column belongs to>"}}
-- DO NOT place columns at door openings or window positions.
-- DO NOT generate a generic uniform grid. Only place columns where the actual walls of the floor plan dictate structural support.
+═══════════════════════════════════════════
+PHASE 2: BUILD A COORDINATE MAP USING DIMENSIONS
+═══════════════════════════════════════════
+- Set the BOTTOM-LEFT exterior corner of the building as coordinate origin [0.00, 0.00].
+- Convert ALL measurements from feet/inches to meters: 1 foot = 0.3048 m, 1 inch = 0.0254 m.
+- X-axis = horizontal (left → right = width direction).
+- Y-axis = vertical (bottom → top = depth direction).
+- Derive column coordinates by ACCUMULATING room dimensions from the origin:
+  * Example: If Parking occupies the bottom-left and is 12'10" wide (= 3.91m), then the wall at its right edge is at X = 3.91m.
+  * Example: If rooms stack vertically, accumulate their depths up the Y-axis.
+- Perform this calculation for EVERY wall intersection in the plan.
 
-STEP 3 — BEAM PLACEMENT (LineString features):
-- Connect each pair of adjacent columns along load-bearing walls with a beam (LineString).
-- Each beam must have properties: {{"type": "beam", "beam_id": <integer>, "load_kn_m": <float>, "section_w_mm": 300, "section_h_mm": 600}}
-- Scale the gravity beam uniform loads based on floor count:
-  * {num_floors} floor(s): {"15-25 kN/m for ground floor slab loads" if num_floors == 1 else "35-50 kN/m for multi-floor cumulative loads"}
-- Every beam LineString coordinate pair MUST exactly match two existing column Point coordinates.
+═══════════════════════════════════════════
+PHASE 3: PLACE COLUMNS AT EVERY WALL JUNCTION
+═══════════════════════════════════════════
+Place a structural column (Point) at every calculated coordinate where:
+  a) Two or more room boundary walls meet (interior junctions)
+  b) An external corner of the building occurs
+  c) An internal partition wall joins an external wall
+  d) A load-bearing wall changes direction
 
-STEP 4 — VALIDATION RULES:
-- Every beam endpoint coordinate must match exactly one column coordinate (no floating unconnected beams).
-- Every column must be connected to at least one beam.
-- The column network must form a connected structural frame matching the room boundaries visible in the image.
+Each column must have exactly these properties:
+  {{"type": "node", "node_id": <integer>, "support": "pinned", "room_context": "<room names at this junction>"}}
 
-Additional context provided by user:
-{file_content_or_text}
+Rules:
+- Do NOT place columns at door openings or window gaps.
+- Do NOT generate a symmetrical grid — only where walls dictate.
 
-OUTPUT: Return ONLY a valid RFC 7946 GeoJSON FeatureCollection object. No markdown, no backticks, no explanation text. Pure JSON only.
+═══════════════════════════════════════════
+PHASE 4: CONNECT COLUMNS WITH BEAMS
+═══════════════════════════════════════════
+- Draw a beam (LineString) between every pair of adjacent columns that share a load-bearing wall.
+- Each beam must have properties:
+  {{"type": "beam", "beam_id": <integer>, "load_kn_m": <float>, "section_w_mm": 300, "section_h_mm": 600}}
+- Load values for {num_floors} floor(s): {"15-25 kN/m" if num_floors == 1 else "35-50 kN/m"}.
+- CRITICAL: Every beam LineString coordinate must EXACTLY match two existing column Point coordinates (identical float values, to 2 decimal places).
+
+═══════════════════════════════════════════
+PHASE 5: SELF-VALIDATE BEFORE OUTPUT
+═══════════════════════════════════════════
+Before generating the JSON, mentally verify:
+✓ Total width of all horizontally-arranged rooms = overall plan width (25' = 7.62m)?
+✓ Total depth of all vertically-stacked rooms = overall plan depth (45' = 13.72m)?
+✓ Every beam endpoint has a matching column coordinate?
+✓ Every column is connected to at least one beam?
+
+Additional user context: {file_content_or_text}
+
+OUTPUT: Return ONLY a valid RFC 7946 GeoJSON FeatureCollection. Pure JSON, no markdown, no backticks, no text before or after the JSON.
 """
     
     parts = []
