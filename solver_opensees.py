@@ -104,7 +104,7 @@ def run_opensees_analysis(geojson_data):
     
     for elem_id, load_val in loads:
         # Uniform distributed gravity load (negative y direction)
-        ops.eleLoad('-ele', elem_id, '-type', '-beamUniform', 0.0, -load_val)
+        ops.eleLoad('-ele', elem_id, '-type', '-beamUniform', -load_val)
         
     # Run analysis
     ops.constraints('Plain')
@@ -114,6 +114,9 @@ def run_opensees_analysis(geojson_data):
     ops.algorithm('Linear')
     ops.analysis('Static')
     ops.analyze(1)
+    
+    # Calculate reactions explicitly before querying nodeReaction
+    ops.reactions()
     
     # Extract results
     results = {
