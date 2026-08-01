@@ -98,18 +98,16 @@ def run_opensees_analysis(geojson_data):
             })
             element_id_counter += 1
 
-    # Apply loads as equivalent global nodal loads (F = w*L/2 at each end, in global -Y)
-    # This avoids eleLoad local-frame issues for non-horizontal beams in a plan view.
+    # Apply uniform loads to beams
     ops.timeSeries('Constant', 1)
     ops.pattern('Plain', 1, 1)
 
     for elem in elements:
         load_val = float(elem["properties"].get("load_kn_m", 0.0))
         if load_val > 0:
-            length = elem["length"]
-            nodal_force = -load_val * length / 2.0  # global -Y (gravity)
-            ops.load(elem["n1"], 0.0, nodal_force, 0.0)
-            ops.load(elem["n2"], 0.0, nodal_force, 0.0)
+            # Apply the uniform vertical load to the OpenSees beam element
+            # Negative sign indicates downward gravity load along the Y-axis (transverse in local coordinates)
+            ops.eleLoad('-ele', elem["element_id"], '-type', '-beamUniform', -load_val, 0.0)
 
     # Run analysis
     ops.constraints('Plain')
