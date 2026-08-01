@@ -99,6 +99,8 @@ OUTPUT: Return ONLY a valid RFC 7946 GeoJSON FeatureCollection. Pure JSON, no ma
     try:
         response = requests.post(url, json=payload, headers=headers)
         res_json = response.json()
+        if "error" in res_json:
+            raise RuntimeError(f"Gemini API returned error: {res_json['error']}")
         text_out = res_json["candidates"][0]["content"]["parts"][0]["text"]
         
         if "```" in text_out:
@@ -106,21 +108,8 @@ OUTPUT: Return ONLY a valid RFC 7946 GeoJSON FeatureCollection. Pure JSON, no ma
             
         return json.loads(text_out)
     except Exception as e:
-        print("Gemini API parsing failed or key is missing. Returning default 2D structure template.")
-        load_val = 25.0 if num_floors == 1 else 45.0
-        return {
-            "type": "FeatureCollection",
-            "features": [
-                {"type": "Feature", "geometry": {"type": "Point", "coordinates": [0.0, 0.0]}, "properties": {"type": "node", "support": "pinned", "node_id": 1}},
-                {"type": "Feature", "geometry": {"type": "Point", "coordinates": [6.0, 0.0]}, "properties": {"type": "node", "support": "pinned", "node_id": 2}},
-                {"type": "Feature", "geometry": {"type": "Point", "coordinates": [0.0, 6.0]}, "properties": {"type": "node", "support": "pinned", "node_id": 3}},
-                {"type": "Feature", "geometry": {"type": "Point", "coordinates": [6.0, 6.0]}, "properties": {"type": "node", "support": "pinned", "node_id": 4}},
-                {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[0.0, 0.0], [6.0, 0.0]]}, "properties": {"type": "beam", "beam_id": 1, "load_kn_m": load_val, "section_w_mm": 300, "section_h_mm": 600}},
-                {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[0.0, 6.0], [6.0, 6.0]]}, "properties": {"type": "beam", "beam_id": 2, "load_kn_m": load_val, "section_w_mm": 300, "section_h_mm": 600}},
-                {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[0.0, 0.0], [0.0, 6.0]]}, "properties": {"type": "beam", "beam_id": 3, "load_kn_m": load_val, "section_w_mm": 300, "section_h_mm": 600}},
-                {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[6.0, 0.0], [6.0, 6.0]]}, "properties": {"type": "beam", "beam_id": 4, "load_kn_m": load_val, "section_w_mm": 300, "section_h_mm": 600}}
-            ]
-        }
+        print(f"Gemini API parsing failed: {str(e)}")
+        raise e
 
 def resolve_solver_divergence(api_key, opensees_results, frame3dd_results, model_name="gemini-1.5-flash"):
     """
