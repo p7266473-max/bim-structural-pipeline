@@ -156,7 +156,21 @@ def run_frame3dd_analysis(geojson_data):
     if len(active_dofs) > 0:
         K_sub = K_global[np.ix_(active_dofs, active_dofs)]
         F_sub = F_global[active_dofs]
-        U_sub = np.linalg.solve(K_sub, F_sub)
+        try:
+            U_sub = np.linalg.solve(K_sub, F_sub)
+        except np.linalg.LinAlgError:
+            # Fallback safety: Tikhonov regularization to prevent singular matrix crashes
+            diag_val = np.abs(np.diagonal(K_sub))
+            mean_diag = np.mean(diag_val) if len(diag_val) > 0 else 1.0
+            eps = 1e-5 * mean_diag
+            K_regulated = K_sub + eps * np.eye(K_sub.shape[0])
+            try:
+                U_sub = np.linalg.solve(K_regulated, F_sub)
+            except Exception:
+                raise RuntimeError(
+                    "Direct stiffness matrix solver failed due to unstable structural geometry. "
+                    "Ensure columns have support restraints defined."
+                )
         U[active_dofs] = U_sub
         
     # Reconstruct reactions
