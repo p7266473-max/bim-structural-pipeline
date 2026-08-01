@@ -100,7 +100,8 @@ OUTPUT: Return ONLY a valid RFC 7946 GeoJSON FeatureCollection. Pure JSON, no ma
         response = requests.post(url, json=payload, headers=headers)
         res_json = response.json()
         if "error" in res_json:
-            raise RuntimeError(f"Gemini API returned error: {res_json['error']}")
+            error_detail = json.dumps(res_json["error"], indent=2)
+            raise RuntimeError(f"Gemini API returned error:\n{error_detail}")
         text_out = res_json["candidates"][0]["content"]["parts"][0]["text"]
         
         if "```" in text_out:
