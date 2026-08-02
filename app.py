@@ -65,11 +65,9 @@ header {visibility: hidden !important; display: none !important;}
 .stAppDeployButton {visibility: hidden !important; display: none !important;}
 #stDecoration {visibility: hidden !important; display: none !important;}
 
-/* Hide Streamlit bottom footer, bottom container, and viewer/host badges */
+/* Hide Streamlit bottom footer and viewer/host badges */
 footer {visibility: hidden !important; display: none !important;}
 [data-testid="stFooter"] {visibility: hidden !important; display: none !important;}
-[data-testid="stBottom"] {visibility: hidden !important; display: none !important;}
-[data-testid="stBottomBlockContainer"] {visibility: hidden !important; display: none !important;}
 .viewerBadge_container__16g3m {visibility: hidden !important; display: none !important;}
 [class*="viewerBadge"] {visibility: hidden !important; display: none !important;}
 [class*="styles_viewerBadge"] {visibility: hidden !important; display: none !important;}
@@ -86,8 +84,7 @@ function cleanupStreamlitUI() {
         '[data-testid="stStatusWidget"]', '[data-testid="stToolbar"]', '#MainMenu',
         'header', '.stAppDeployButton', '#stDecoration', '.viewerBadge_container__16g3m',
         '[class*="viewerBadge"]', '[class*="styles_viewerBadge"]', '[class*="ViewerBadge"]',
-        '.stActionButton', '[data-testid="stBottom"]', '[data-testid="stBottomBlockContainer"]',
-        'button[title*="Streamlit"]', 'div[class*="StatusWidget"]'
+        '.stActionButton', 'button[title*="Streamlit"]', 'div[class*="StatusWidget"]'
     ];
 
     [document, window.parent.document].forEach(doc => {
