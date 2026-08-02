@@ -51,6 +51,22 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown("""
+<style>
+#MainMenu {visibility: hidden; display: none !important;}
+header {visibility: hidden; display: none !important;}
+footer {visibility: hidden; display: none !important;}
+[data-testid="stHeader"] {visibility: hidden; display: none !important;}
+[data-testid="stFooter"] {visibility: hidden; display: none !important;}
+[data-testid="stToolbar"] {visibility: hidden; display: none !important;}
+[data-testid="stDecoration"] {visibility: hidden; display: none !important;}
+[data-testid="stStatusWidget"] {visibility: hidden; display: none !important;}
+.stAppDeployButton {display: none !important;}
+#stDecoration {display: none !important;}
+</style>
+""", unsafe_allow_html=True)
+
+
 # Header Section
 st.markdown("""
 <div style="background-color:#0F172A;padding:24px;border-radius:12px;border-bottom:4px solid #0284C7;margin-bottom:24px">
