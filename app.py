@@ -53,16 +53,24 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-#MainMenu {visibility: hidden; display: none !important;}
-header {visibility: hidden; display: none !important;}
-footer {visibility: hidden; display: none !important;}
-[data-testid="stHeader"] {visibility: hidden; display: none !important;}
-[data-testid="stFooter"] {visibility: hidden; display: none !important;}
-[data-testid="stToolbar"] {visibility: hidden; display: none !important;}
-[data-testid="stDecoration"] {visibility: hidden; display: none !important;}
-[data-testid="stStatusWidget"] {visibility: hidden; display: none !important;}
-.stAppDeployButton {display: none !important;}
-#stDecoration {display: none !important;}
+/* Hide Streamlit top header, toolbar, GitHub fork badges, menu, and decoration */
+#MainMenu {visibility: hidden !important; display: none !important;}
+header {visibility: hidden !important; display: none !important;}
+[data-testid="stHeader"] {visibility: hidden !important; display: none !important;}
+[data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
+[data-testid="stDecoration"] {visibility: hidden !important; display: none !important;}
+[data-testid="stStatusWidget"] {visibility: hidden !important; display: none !important;}
+.stAppDeployButton {visibility: hidden !important; display: none !important;}
+#stDecoration {visibility: hidden !important; display: none !important;}
+
+/* Hide Streamlit bottom footer and bottom-right viewer/host badges */
+footer {visibility: hidden !important; display: none !important;}
+[data-testid="stFooter"] {visibility: hidden !important; display: none !important;}
+.viewerBadge_container__16g3m {visibility: hidden !important; display: none !important;}
+[class*="viewerBadge"] {visibility: hidden !important; display: none !important;}
+[class*="styles_viewerBadge"] {visibility: hidden !important; display: none !important;}
+[class*="ViewerBadge"] {visibility: hidden !important; display: none !important;}
+.stActionButton {visibility: hidden !important; display: none !important;}
 </style>
 """, unsafe_allow_html=True)
 
